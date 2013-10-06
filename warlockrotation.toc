@@ -1,0 +1,7 @@
+## Interface: 50300
+## Title: |cffff8000LootFilter Addon
+## Notes: Protect your LUA.
+## Dependencies: mConfig, JPS
+
+destruction.lua
+
