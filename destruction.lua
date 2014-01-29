@@ -12,7 +12,7 @@ wldConfig:addSlider("autoDeactivateBurningRush", "Burning Rush Auto-Deactivation
 wldConfig:addDropDown("altKeyAction", "Alt-Key Action", "Action to do when Alt-Key is pressed", {SHADOWFURY="Shadowfury", STOPCASTING="Stop Casting", BANISHTARGET="Banish Target", BANISHMOUSEOVER="Banish Mouseover"}, "SHADOWFURY")
 
 function wl.altKeyAction(name)
-    return IsAltKeyDown() and not GetCurrentKeyBoardFocus() and wl.get("altKeyAction")==name
+    return IsAltKeyDown() and  wl.get("altKeyAction")==name
 end
 
 
@@ -86,8 +86,8 @@ local spellTable = {
     -- CD's
     { jps.getDPSRacial(), 'jps.UseCDs' },
     {wl.spells.lifeblood, 'jps.UseCDs' },
-    --{ {"macro","/use 10"}, 'jps.useSynapseSprings() ~= "" and jps.UseCDs' },
-    { jps.useSynapseSprings, 'jps.useSynapseSprings() ~= "" and jps.UseCDs' },
+    { {"macro","/use 10"}, 'jps.useSynapseSprings() ~= "" and jps.UseCDs' },
+    --{ jps.useSynapseSprings, 'jps.useSynapseSprings() ~= "" and jps.UseCDs' },
     { jps.useTrinket(0),       'jps.UseCDs' },
     { jps.useTrinket(1),       'jps.UseCDs' },
     
@@ -105,6 +105,8 @@ local spellTable = {
 
     -- Single Target
     {"nested", 'not jps.MultiTarget', {
+        -- Consume Backlash - always!
+        {wl.spells.incinerate, 'jps.buff(wl.spells.backlash)'},
         -- Non-Moving
         {"nested", 'not wl.altKeyAction("STOPCASTING") and not jps.Moving', {
             {wl.spells.havoc, 'not IsShiftKeyDown() and IsControlKeyDown() and not GetCurrentKeyBoardFocus()', "mouseover" },
@@ -113,8 +115,8 @@ local spellTable = {
             {wl.spells.chaosBolt, 'not jps.Moving and jps.burningEmbers() > 0 and jps.buffStacks(wl.spells.havoc)>=3'},
             jps.dotTracker.castTableStatic("immolate"),
             {wl.spells.conflagrate, 'GetSpellCharges(wl.spells.conflagrate) >= 2' },
-            
             {wl.spells.chaosBolt, 'jps.TimeToDie("target", 0.2) > 5.0 and jps.emberShards() > wl.get("chaosBoltThreshold")' },
+    --        {wl.spells.incinerate, 'jps.buff(wl.spells.backdraft)'},
             {wl.spells.chaosBolt, 'jps.buff("Skull Banner") and jps.buffDuration("Skull Banner") > 3 and jps.emberShards() > wl.get("chaosBoltThresholdEmpowered")' },
             {wl.spells.chaosBolt, 'jps.buff("Synapse Springs") and jps.buffDuration("Synapse Springs") > 3 and jps.emberShards() > wl.get("chaosBoltThresholdEmpowered")' },
             {wl.spells.chaosBolt, 'jps.buff(wl.spells.darkSoulInstability) and jps.buffDuration(wl.spells.darkSoulInstability) > 3 and jps.burningEmbers() > 0' },
@@ -126,9 +128,8 @@ local spellTable = {
         -- Moving
         {"nested", 'not wl.altKeyAction("STOPCASTING") and jps.Moving', {
             wl.shadowBurnTable,
-            {wl.spells.incinerate, 'jps.buff("Backlash")'},
-            {wl.spells.incinerate, 'wl.hasKilJaedensCunning()'},
             {wl.spells.conflagrate},
+            {wl.spells.incinerate, 'wl.hasKilJaedensCunning()'},
             {wl.spells.felFlame, 'jps.mana() > wl.getPercent("felFlameMinMana")' },
         }},
         
