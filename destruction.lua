@@ -7,12 +7,15 @@ wldConfig:addSlider("chaosBoltThresholdEmpowered", "Chaos Bolt Threshold (Empowe
 wldConfig:addSlider("mortalCoilPercentage", "Mortal Coil %","Percentage at which to use mortal coil, if available", 0, 100, 80, 1)
 wldConfig:addSlider("healthStonePercentage", "Health Stone %","Percentage at which to use health stones", 0, 100, 65, 1)
 wldConfig:addSlider("emberTapPercentage", "Ember Tap %","Percentage at which to use ember tap", 0, 100, 30, 1)
-wldConfig:addSlider("felFlameMinMana", "Fel Flame Mana","Minimum Mana needed before Fel Flames are casted", 0, 100, 50, 1)
 wldConfig:addSlider("autoDeactivateBurningRush", "Burning Rush Auto-Deactivation","Number of seconds until Burning Rush is deactivated if not moving", 0, 2, 1, 0.1)
-wldConfig:addDropDown("altKeyAction", "Alt-Key Action", "Action to do when Alt-Key is pressed", {SHADOWFURY="Shadowfury", STOPCASTING="Stop Casting", BANISHTARGET="Banish Target", BANISHMOUSEOVER="Banish Mouseover"}, "SHADOWFURY")
+wldConfig:addDropDown("altKeyAction", "Alt-Key Action", "Action to do when Alt-Key is pressed", {SHADOWFURY="Shadowfury", STOPCASTING="Stop Casting", BANISHTARGET="Banish Target", BANISHMOUSEOVER="Banish Mouseover", FEARTARGET="Fear Target", FEARMOUSEOVER="Fear Mouseover"}, "SHADOWFURY")
+wldConfig:addDropDown("immolateType", "Immolate Behavior", "Immolate Type", {DOTTRACKER="DoT Tracker", SIMPLE="Simple"}, "DOTTRACKER")
 
 function wl.altKeyAction(name)
     return IsAltKeyDown() and  wl.get("altKeyAction")==name
+end
+function wl.immolateType(name)
+    return wl.get("immolateType")==name
 end
 
 
@@ -45,7 +48,7 @@ wl.shadowBurnTable = {"nested", 'jps.hp("target") <= 0.20', {
     {wl.spells.shadowburn, 'jps.buffStacks(wl.spells.havoc)>=1 and jps.burningEmbers() > 0' },
     {wl.spells.shadowburn, 'jps.emberShards() > wl.get("shadowBurnThreshold")' },
     {wl.spells.shadowburn, 'jps.buff(wl.spells.darkSoulInstability) and jps.burningEmbers() > 0' },
-    {wl.spells.shadowburn, 'jps.buff("Synapse Springs") and jps.emberShards() > wl.get("shadowBurnThresholdEmpowered")' },
+--    {wl.spells.shadowburn, 'jps.buff("Synapse Springs") and jps.emberShards() > wl.get("shadowBurnThresholdEmpowered")' },
     {wl.spells.shadowburn, 'jps.mana() < 0.20'  },
     {wl.spells.shadowburn, 'jps.TimeToDie("target") <= 20'  },
 }}
@@ -73,11 +76,13 @@ local spellTable = {
     {wl.spells.shadowfury, 'wl.altKeyAction("SHADOWFURY")' },-- Shadowfury
     {wl.spells.banish, 'wl.altKeyAction("BANISHTARGET")' },-- Banish
     {wl.spells.banish, 'wl.altKeyAction("BANISHMOUSEOVER")', "mouseover"},-- Banish Mouseover
+    {wl.spells.fear, 'wl.altKeyAction("FEARTARGET")' },-- Banish
+    {wl.spells.fear, 'wl.altKeyAction("FEARMOUSEOVER")', "mouseover"},-- Banish Mouseover
     
     
     -- COE Debuff
-    {wl.spells.curseOfTheElements, 'not jps.debuff(wl.spells.curseOfTheElements) and not wl.isTrivial("target") and not wl.isCotEBlacklisted("target")' },
-    {wl.spells.curseOfTheElements, 'wl.attackFocus() and not jps.debuff(wl.spells.curseOfTheElements, "focus") and not wl.isTrivial("focus") and not wl.isCotEBlacklisted("focus")' , "focus" },
+    --{wl.spells.curseOfTheElements, 'not jps.debuff(wl.spells.curseOfTheElements) and not wl.isTrivial("target") and not wl.isCotEBlacklisted("target")' },
+    --{wl.spells.curseOfTheElements, 'wl.attackFocus() and not jps.debuff(wl.spells.curseOfTheElements, "focus") and not wl.isTrivial("focus") and not wl.isCotEBlacklisted("focus")' , "focus" },
     
     {wl.spells.fireAndBrimstone, 'jps.burningEmbers() > 0 and not jps.buff(wl.spells.fireAndBrimstone, "player") and jps.MultiTarget and not jps.isRecast(wl.spells.fireAndBrimstone, "target")' },
     { {"macro","/cancelaura "..wl.spells.fireAndBrimstone}, 'jps.buff(wl.spells.fireAndBrimstone, "player") and jps.burningEmbers() == 0' },
@@ -86,7 +91,7 @@ local spellTable = {
     -- CD's
     { jps.getDPSRacial(), 'jps.UseCDs' },
     {wl.spells.lifeblood, 'jps.UseCDs' },
-    { {"macro","/use 10"}, 'jps.useSynapseSprings() ~= "" and jps.UseCDs' },
+--    { {"macro","/use 10"}, 'jps.useSynapseSprings() ~= "" and jps.UseCDs' },
     --{ jps.useSynapseSprings, 'jps.useSynapseSprings() ~= "" and jps.UseCDs' },
     { jps.useTrinket(0),       'jps.UseCDs' },
     { jps.useTrinket(1),       'jps.UseCDs' },
@@ -103,22 +108,31 @@ local spellTable = {
     -- Shadowburn mouseover!
     {wl.spells.shadowburn, 'jps.hp("mouseover") < 0.20 and jps.burningEmbers() > 0 and jps.myDebuffDuration(wl.spells.shadowburn, "mouseover")<=0.5', "mouseover"  },
 
+
+    {"nested", 'jps.MultiTarget', {
+        {wl.spells.shadowburn, 'jps.hp("target") <= 0.20 and jps.burningEmbers() > 0'  },
+        {wl.spells.immolate , 'jps.buff(wl.spells.fireAndBrimstone, "player") and jps.myDebuffDuration(wl.spells.immolate) <= 2.0 and jps.LastCast ~= wl.spells.immolate'},
+        {wl.spells.conflagrate, 'jps.buff(wl.spells.fireAndBrimstone, "player")' },
+      --  {wl.spells.incinerate, 'not jps.Moving or wl.hasKilJaedensCunning() or jps.buff("Backlash")' },
+    }},
+
     -- Single Target
-    {"nested", 'not jps.MultiTarget', {
+    {"nested", 'true', {
         -- Consume Backlash - always!
-        {wl.spells.incinerate, 'jps.buff(wl.spells.backlash)'},
+        --{wl.spells.incinerate, 'jps.buff(wl.spells.backlash)'},
         -- Non-Moving
         {"nested", 'not wl.altKeyAction("STOPCASTING") and not jps.Moving', {
             {wl.spells.havoc, 'not IsShiftKeyDown() and IsControlKeyDown() and not GetCurrentKeyBoardFocus()', "mouseover" },
             {wl.spells.havoc, 'not jps.Moving and wl.attackFocus()', "focus" },
             wl.shadowBurnTable,
             {wl.spells.chaosBolt, 'not jps.Moving and jps.burningEmbers() > 0 and jps.buffStacks(wl.spells.havoc)>=3'},
-            jps.dotTracker.castTableStatic("immolate"),
+            {"nested", 'wl.immolateType("DOTTRACKER")', {jps.dotTracker.castTableStatic("immolate")}},
+            {wl.spells.immolate , 'wl.immolateType("SIMPLE") and jps.myDebuffDuration(wl.spells.immolate) <= 2.0 and jps.LastCast ~= wl.spells.immolate'},
             {wl.spells.conflagrate, 'GetSpellCharges(wl.spells.conflagrate) >= 2' },
             {wl.spells.chaosBolt, 'jps.TimeToDie("target", 0.2) > 5.0 and jps.emberShards() > wl.get("chaosBoltThreshold")' },
     --        {wl.spells.incinerate, 'jps.buff(wl.spells.backdraft)'},
             {wl.spells.chaosBolt, 'jps.buff("Skull Banner") and jps.buffDuration("Skull Banner") > 3 and jps.emberShards() > wl.get("chaosBoltThresholdEmpowered")' },
-            {wl.spells.chaosBolt, 'jps.buff("Synapse Springs") and jps.buffDuration("Synapse Springs") > 3 and jps.emberShards() > wl.get("chaosBoltThresholdEmpowered")' },
+ --           {wl.spells.chaosBolt, 'jps.buff("Synapse Springs") and jps.buffDuration("Synapse Springs") > 3 and jps.emberShards() > wl.get("chaosBoltThresholdEmpowered")' },
             {wl.spells.chaosBolt, 'jps.buff(wl.spells.darkSoulInstability) and jps.buffDuration(wl.spells.darkSoulInstability) > 3 and jps.burningEmbers() > 0' },
             
             {wl.spells.conflagrate, 'GetSpellCharges(wl.spells.conflagrate) >= 1' },
@@ -130,23 +144,14 @@ local spellTable = {
             wl.shadowBurnTable,
             {wl.spells.conflagrate},
             {wl.spells.incinerate, 'wl.hasKilJaedensCunning()'},
-            {wl.spells.felFlame, 'jps.mana() > wl.getPercent("felFlameMinMana")' },
         }},
         
         -- Stop-Casting, if selected
         {"nested", 'wl.altKeyAction("STOPCASTING")', {
             wl.shadowBurnTable,
-            {wl.spells.incinerate, 'jps.buff("Backlash")'},
+          --  {wl.spells.incinerate, 'jps.buff("Backlash")'},
             {wl.spells.conflagrate},
-            {wl.spells.felFlame, 'jps.mana() > wl.getPercent("felFlameMinMana")' },
         }},
-    }},
-
-    {"nested", 'jps.MultiTarget', {
-        {wl.spells.shadowburn, 'jps.hp("target") <= 0.20 and jps.burningEmbers() > 0'  },
-        {wl.spells.immolate , 'jps.buff(wl.spells.fireAndBrimstone, "player") and jps.myDebuffDuration(wl.spells.immolate) <= 2.0 and jps.LastCast ~= wl.spells.immolate'},
-        {wl.spells.conflagrate, 'jps.buff(wl.spells.fireAndBrimstone, "player")' },
-        {wl.spells.incinerate, 'not jps.Moving or wl.hasKilJaedensCunning() or jps.buff("Backlash")' },
     }},
 }
 
@@ -170,25 +175,21 @@ local spellTableIcyVeins = {
     {wl.spells.rainOfFire, 'IsShiftKeyDown() and jps.buffDuration(wl.spells.rainOfFire) < 1 and not GetCurrentKeyBoardFocus()'  },
     {wl.spells.rainOfFire, 'IsShiftKeyDown() and IsControlKeyDown() and not GetCurrentKeyBoardFocus()' },
     -- COE Debuff
-    {wl.spells.curseOfTheElements, 'not jps.debuff(wl.spells.curseOfTheElements) and not wl.isTrivial("target") and not wl.isCotEBlacklisted("target")' },
-    {wl.spells.curseOfTheElements, 'wl.attackFocus() and not jps.debuff(wl.spells.curseOfTheElements, "focus") and not wl.isTrivial("focus") and not wl.isCotEBlacklisted("focus")' , "focus" },
+--    {wl.spells.curseOfTheElements, 'not jps.debuff(wl.spells.curseOfTheElements) and not wl.isTrivial("target") and not wl.isCotEBlacklisted("target")' },
+--    {wl.spells.curseOfTheElements, 'wl.attackFocus() and not jps.debuff(wl.spells.curseOfTheElements, "focus") and not wl.isTrivial("focus") and not wl.isCotEBlacklisted("focus")' , "focus" },
     
     {wl.spells.fireAndBrimstone, 'jps.burningEmbers() > 0 and not jps.buff(wl.spells.fireAndBrimstone, "player") and jps.MultiTarget and not jps.isRecast(wl.spells.fireAndBrimstone, "target")' },
     { {"macro","/cancelaura "..wl.spells.fireAndBrimstone}, 'jps.buff(wl.spells.fireAndBrimstone, "player") and jps.burningEmbers() == 0' },
     { {"macro","/cancelaura "..wl.spells.fireAndBrimstone}, 'jps.buff(wl.spells.fireAndBrimstone, "player") and not jps.MultiTarget' },
     
 
-    -- On the move
-    {"nested", 'jps.Moving and not wl.hasKilJaedensCunning()', {
-        {wl.spells.felFlame, 'jps.mana() > 0.5' },
-    }},
     
     -- CD's
     { {"macro","/cast " .. wl.spells.darkSoulInstability}, 'jps.cooldown(wl.spells.darkSoulInstability) == 0 and jps.UseCDs and jps.emberShards() > 29' },
     { {"macro","/cast " .. wl.spells.darkSoulInstability}, 'GetSpellCharges(wl.spells.darkSoulInstability) == 2 and jps.UseCDs and jps.emberShards() > 19' },
     { jps.getDPSRacial(), 'jps.UseCDs' },
     {wl.spells.lifeblood, 'jps.UseCDs' },
-    { jps.useSynapseSprings(), 'jps.UseCDs' },
+--    { jps.useSynapseSprings(), 'jps.UseCDs' },
     { jps.useTrinket(0),       'jps.UseCDs' },
     { jps.useTrinket(1),       'jps.UseCDs' },
     
@@ -201,7 +202,7 @@ local spellTableIcyVeins = {
         {"nested", 'jps.hp("target") <= 0.20', {
             {wl.spells.shadowburn, 'jps.emberShards() > 35'  },
             {wl.spells.shadowburn, 'jps.buff(wl.spells.darkSoulInstability) and jps.burningEmbers() > 0' },
-            {wl.spells.shadowburn, 'jps.buff("Synapse Springs") and jps.burningEmbers() > 0' },
+--            {wl.spells.shadowburn, 'jps.buff("Synapse Springs") and jps.burningEmbers() > 0' },
 --          {wl.spells.shadowburn, 'jps.buff("Jade Spirit") and jps.burningEmbers() > 0' },
             {wl.spells.shadowburn, 'jps.buff("Breath of Many Minds") and jps.burningEmbers() > 0' },
             {wl.spells.shadowburn, 'jps.mana() < 0.25'  },
@@ -215,20 +216,18 @@ local spellTableIcyVeins = {
         {"nested", 'not jps.Moving', {
             {wl.spells.chaosBolt, ' jps.TimeToDie("target", 0.2) > 5.0 and jps.emberShards() >= 35' },
             {wl.spells.chaosBolt, 'jps.buff("Skull Banner") and jps.buffDuration("Skull Banner") > 3 and jps.burningEmbers() > 0' },
-            {wl.spells.chaosBolt, 'jps.buff("Synapse Springs") and jps.buffDuration("Synapse Springs") > 3 and jps.burningEmbers() > 0' },
+--            {wl.spells.chaosBolt, 'jps.buff("Synapse Springs") and jps.buffDuration("Synapse Springs") > 3 and jps.burningEmbers() > 0' },
 --          {wl.spells.chaosBolt, 'jps.buff("Jade Spirit") and jps.buffDuration("Jade Spirit") > 3 and jps.burningEmbers() > 0' },
             {wl.spells.chaosBolt, 'jps.buff("Breath of Many Minds") and jps.buffDuration("Breath of Many Minds") > 3 and jps.burningEmbers() > 0' },
             {wl.spells.chaosBolt, 'jps.buff(wl.spells.darkSoulInstability) and jps.buffDuration(wl.spells.darkSoulInstability) > 3 and jps.burningEmbers() > 0' },
         }},
         {wl.spells.conflagrate, 'GetSpellCharges(wl.spells.conflagrate) >= 1' },
         {wl.spells.incinerate, 'not jps.Moving' },
-        {wl.spells.felFlame, 'jps.Moving and jps.mana() > 0.5'  },
     }},
     
     {"nested", 'not jps.MultiTarget and wl.altKeyAction("STOPCASTING")', {
         {wl.spells.shadowburn, 'jps.hp("target") <= 0.20 and jps.burningEmbers() > 0'  },
         {wl.spells.conflagrate },
-        {wl.spells.felFlame },
     }},
     {"nested", 'jps.MultiTarget', {
         {wl.spells.shadowburn, 'jps.hp("target") <= 0.20 and jps.burningEmbers() > 0'  },
@@ -238,6 +237,9 @@ local spellTableIcyVeins = {
     }},
 }
 
+
+jps.initializedRotation=false
+jps.MultiRotations=true
 
 jps.registerRotation("WARLOCK","DESTRUCTION",function()
     wl.deactivateBurningRushIfNotMoving(wl.get("autoDeactivateBurningRush"))
@@ -249,5 +251,6 @@ jps.registerRotation("WARLOCK","DESTRUCTION",function()
 
     return parseStaticSpellTable(spellTable)
 end,"Adv. Destruction Lock")
-
+jps.setActiveRotation(3)
+jps.resetRotationTable()
 
